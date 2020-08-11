@@ -8,8 +8,10 @@ module Neuron.Zettelkasten.ZettelSpec
 where
 
 import Data.TagTree
+import Data.Time (midnight)
 import Data.Time.Calendar
 import Neuron.Reader.Markdown
+import Data.Time.LocalTime (LocalTime (LocalTime))
 import Neuron.Reader.Type
 import Neuron.Zettelkasten.ID
 import Neuron.Zettelkasten.Zettel
@@ -33,7 +35,7 @@ spec = do
             "Some title"
             False
             [Tag "science", Tag "journal/class"]
-            (Just $ mkDay day)
+            (Just $ (LocalTime (mkDay day) midnight))
             False
             noQueries
             noError
