@@ -16,7 +16,7 @@ import qualified Data.Map as Map
 import Data.TagTree (Tag (Tag))
 import Data.Tagged
 import Data.Text (toLower)
-import Data.Time.Calendar (Day)
+import Data.Time.LocalTime (LocalTime)
 import Neuron.Reader.Type (ZettelParseError, ZettelReader)
 import Neuron.Zettelkasten.Zettel.Meta (Meta (..), parseZettelDate)
 import Relude
@@ -36,7 +36,13 @@ parseOrg _ s = do
 extractMetadata :: Pandoc -> Either ZettelParseError (Maybe Meta)
 extractMetadata doc
   | Just ((_, _, Map.fromList -> properties), _) <- getH1 doc = do
-    date <- traverse parseDate $ lookup "date" properties
+    createdWithTime <- traverse parseDate $ lookup "created" properties
+    createdDate <- traverse parseDate $ lookup "date" properties
+    let created =
+          case createdWithTime of
+            Nothing -> createdDate
+            _ -> createdWithTime
+
     -- title is now deprecated
     let title = Nothing
         tags = fmap Tag . words <$> lookup "tags" properties
@@ -44,8 +50,8 @@ extractMetadata doc
     pure $ Just Meta {..}
   | otherwise = pure Nothing
   where
-    parseDate :: Text -> Either ZettelParseError Day
-    parseDate date = maybeToRight (Tagged $ "Invalid date format: " <> date) $ parseZettelDate @Maybe date
+    parseDate :: Text -> Either ZettelParseError LocalTime
+    parseDate date = maybeToRight (Tagged $ "Invalid date/time format: " <> date) $ parseZettelDate @Maybe date
 
     parseUnlisted :: Text -> Bool
     parseUnlisted a = toLower a == "true"

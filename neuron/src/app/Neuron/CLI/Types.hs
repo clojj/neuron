@@ -46,7 +46,7 @@ data App = App
 data NewCommand = NewCommand
   { title :: Maybe Text,
     format :: Maybe ZettelFormat,
-    day :: Day,
+    created :: LocalTime,
     idScheme :: Some IDScheme,
     edit :: Bool
   }
@@ -97,7 +97,7 @@ data RibConfig = RibConfig
   deriving (Eq, Show)
 
 -- | optparse-applicative parser for neuron CLI
-commandParser :: FilePath -> Day -> Parser App
+commandParser :: FilePath -> LocalTime -> Parser App
 commandParser defaultNotesDir today = do
   notesDir <-
     option
@@ -127,10 +127,10 @@ commandParser defaultNotesDir today = do
               <> long "format"
               <> help "The document format of the new zettel"
       edit <- switch (long "edit" <> short 'e' <> help "Open the newly-created zettel in $EDITOR")
-      day <-
+      created <-
         option dayReader $
-          long "day"
-            <> metavar "DAY"
+          long "created"
+            <> metavar "CREATED"
             <> value today
             <> showDefault
             <> help "Zettel creation date in UTC"
@@ -145,7 +145,7 @@ commandParser defaultNotesDir today = do
           <|> fmap
             (const . Some . IDSchemeCustom)
             (option str (long "id" <> help "Use a custom ID" <> metavar "IDNAME"))
-      pure $ New $ NewCommand title format day (idSchemeF day) edit
+      pure $ New $ NewCommand title format created (idSchemeF (localDay created)) edit
     openCommand = do
       fmap Open $
         fmap
@@ -226,6 +226,6 @@ commandParser defaultNotesDir today = do
           either (Left . toString . Q.showQueryParseError) (maybe (Left "Unsupported query") Right) $ Q.queryFromURI uri
         Left e ->
           Left $ displayException e
-    dayReader :: ReadM Day
+    dayReader :: ReadM LocalTime
     dayReader =
       maybeReader (parseZettelDate . toText)

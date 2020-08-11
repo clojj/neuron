@@ -7,6 +7,7 @@
 
 module Neuron.Zettelkasten.Zettel.Meta
   ( Meta (..),
+    formatZettelLocalTime,
     formatZettelDate,
     parseZettelDate,
   )
@@ -22,7 +23,7 @@ data Meta = Meta
   { title :: Maybe Text,
     tags :: Maybe [Tag],
     -- | Creation day
-    date :: Maybe Day,
+    created :: Maybe LocalTime,
     -- | List in the z-index
     unlisted :: Maybe Bool
   }
@@ -35,7 +36,11 @@ instance FromYAML Meta where
         <$> m .:? "title"
         -- "keywords" is an alias for "tags"
         <*> (liftA2 (<|>) (m .:? "tags") (m .:? "keywords"))
-        <*> m .:? "date"
+        <*> (m .:? "created")
+          .!= ( case parseEither (m .:? "date") of
+                  Left _ -> Nothing
+                  Right v -> v
+              )
         <*> m .:? "unlisted"
 
 -- NOTE: Not using this instance because it generates "tags: null" when tags is
@@ -45,25 +50,38 @@ instance FromYAML Meta where
 --     mapping
 --       [ "title" .= title,
 --         "tags" .= tags,
---         "date" .= date
+--         "created" .= date
 --       ]
 
-instance FromYAML Day where
+instance FromYAML LocalTime where
   parseYAML =
     parseZettelDate <=< parseYAML @Text
 
-instance ToYAML Day where
+instance ToYAML LocalTime where
   toYAML =
-    toYAML . formatZettelDate
+    toYAML . formatZettelLocalTime
 
--- | The format in which we decode and encode zettel dates.
-zettelDateFormat :: String
-zettelDateFormat = "%Y-%m-%d"
+-- | The default format in which we decode and encode zettel dates.
+defaultZettelDateFormat :: String
+defaultZettelDateFormat = "%Y-%m-%dT%H:%M"
+
+-- | All formats of user-edited tags 'created', that can be parsed.
+zettelDateFormats :: [String]
+zettelDateFormats = ["%Y-%m-%d", defaultZettelDateFormat]
+
+formatZettelLocalTime :: LocalTime -> Text
+formatZettelLocalTime =
+  toText . formatTime defaultTimeLocale defaultZettelDateFormat
 
 formatZettelDate :: Day -> Text
 formatZettelDate =
-  toText . formatTime defaultTimeLocale zettelDateFormat
+  toText . formatTime defaultTimeLocale "%Y-%m-%d"
 
-parseZettelDate :: MonadFail m => Text -> m Day
-parseZettelDate =
-  parseTimeM False defaultTimeLocale zettelDateFormat . toString
+parseZettelDate :: (MonadFail m, Alternative m) => Text -> m LocalTime
+parseZettelDate t =
+  let s = toString t
+      pars = parseDateM s
+   in asum $ pars <$> zettelDateFormats
+
+parseDateM :: MonadFail m => String -> String -> m LocalTime
+parseDateM s = \fmt -> parseTimeM False defaultTimeLocale fmt s

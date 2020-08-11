@@ -8,6 +8,7 @@ module Neuron.Zettelkasten.Zettel.Parser where
 import Control.Monad.Writer
 import Data.Some
 import qualified Data.Text as T
+import Data.Time.LocalTime (LocalTime (LocalTime), midnight)
 import Neuron.Reader.Type
 import Neuron.Zettelkasten.ID
 import Neuron.Zettelkasten.Query.Error
@@ -37,14 +38,14 @@ parseZettel format zreader fn zid s = do
               ((,True) . plainify . snd <$> getH1 doc)
                 <|> ((,False) . takeInitial . plainify <$> getFirstParagraphText doc)
           tags = fromMaybe [] $ Meta.tags =<< meta
-          day = case zid of
+          created = case zid of
             -- We ignore the "data" meta field on legacy Date IDs, which encode the
             -- creation date in the ID.
-            ZettelDateID v _ -> Just v
-            ZettelCustomID _ -> Meta.date =<< meta
+            ZettelDateID v _ -> Just $ LocalTime v midnight
+            ZettelCustomID _ -> Meta.created =<< meta
           unlisted = fromMaybe False $ Meta.unlisted =<< meta
           (queries, errors) = runWriter $ extractQueries doc
-       in Right $ Zettel zid format fn title titleInBody tags day unlisted queries errors doc
+       in Right $ Zettel zid format fn title titleInBody tags created unlisted queries errors doc
   where
     -- Extract all (valid) queries from the Pandoc document
     extractQueries :: MonadWriter [QueryParseError] m => Pandoc -> m [Some ZettelQuery]
