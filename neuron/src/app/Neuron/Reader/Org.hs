@@ -36,12 +36,7 @@ parseOrg _ s = do
 extractMetadata :: Pandoc -> Either ZettelParseError (Maybe Meta)
 extractMetadata doc
   | Just ((_, _, Map.fromList -> properties), _) <- getH1 doc = do
-    createdWithTime <- traverse parseDate $ lookup "created" properties
-    createdDate <- traverse parseDate $ lookup "date" properties
-    let created =
-          case createdWithTime of
-            Nothing -> createdDate
-            _ -> createdWithTime
+    created <- traverse parseDate $ (lookup "created" properties) <|> (lookup "date" properties)
 
     -- title is now deprecated
     let title = Nothing
@@ -51,7 +46,7 @@ extractMetadata doc
   | otherwise = pure Nothing
   where
     parseDate :: Text -> Either ZettelParseError LocalTime
-    parseDate date = maybeToRight (Tagged $ "Invalid date/time format: " <> date) $ parseZettelDate @Maybe date
+    parseDate datetime = maybeToRight (Tagged $ "Invalid date/time format: " <> datetime) $ parseZettelDate @Maybe datetime
 
     parseUnlisted :: Text -> Bool
     parseUnlisted a = toLower a == "true"

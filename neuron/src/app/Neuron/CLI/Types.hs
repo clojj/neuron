@@ -133,7 +133,7 @@ commandParser defaultNotesDir today = do
             <> metavar "CREATED"
             <> value today
             <> showDefault
-            <> help "Zettel creation date in UTC"
+            <> help "Zettel creation date/time"
       -- NOTE: optparse-applicative picks the first option as the default.
       idSchemeF <-
         fmap

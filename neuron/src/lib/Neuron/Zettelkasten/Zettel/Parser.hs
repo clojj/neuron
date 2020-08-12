@@ -8,7 +8,7 @@ module Neuron.Zettelkasten.Zettel.Parser where
 import Control.Monad.Writer
 import Data.Some
 import qualified Data.Text as T
-import Data.Time.LocalTime (LocalTime (LocalTime), midnight)
+import Data.Time.LocalTime (LocalTime (LocalTime), midday)
 import Neuron.Reader.Type
 import Neuron.Zettelkasten.ID
 import Neuron.Zettelkasten.Query.Error
@@ -41,7 +41,7 @@ parseZettel format zreader fn zid s = do
           created = case zid of
             -- We ignore the "data" meta field on legacy Date IDs, which encode the
             -- creation date in the ID.
-            ZettelDateID v _ -> Just $ LocalTime v midnight
+            ZettelDateID v _ -> Just $ LocalTime v midday
             ZettelCustomID _ -> Meta.created =<< meta
           unlisted = fromMaybe False $ Meta.unlisted =<< meta
           (queries, errors) = runWriter $ extractQueries doc

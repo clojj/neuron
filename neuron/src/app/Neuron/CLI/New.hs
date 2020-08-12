@@ -89,7 +89,7 @@ defaultZettelContent format created mtitle = case format of
     T.intercalate
       "\n"
       [ "---",
-        "created: " <> createdAt,
+        "created: " <> createdStr,
         "---",
         "",
         "# " <> title,
@@ -100,11 +100,11 @@ defaultZettelContent format created mtitle = case format of
       "\n"
       [ "* " <> title,
         "    :PROPERTIES:",
-        "    :Created: " <> createdAt,
+        "    :Created: " <> createdStr,
         "    :END:",
         "\n"
       ]
   where
-    createdAt = formatZettelLocalTime created
-    defaultTitleName = "Zettel created on " <> createdAt
+    createdStr = formatZettelLocalTime created
+    defaultTitleName = "Zettel created on " <> createdStr
     title = maybe defaultTitleName T.strip mtitle

@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -8,7 +9,7 @@
 module Neuron.Zettelkasten.Zettel.Meta
   ( Meta (..),
     formatZettelLocalTime,
-    formatZettelDate,
+    formatZettelDay,
     parseZettelDate,
   )
 where
@@ -36,11 +37,7 @@ instance FromYAML Meta where
         <$> m .:? "title"
         -- "keywords" is an alias for "tags"
         <*> (liftA2 (<|>) (m .:? "tags") (m .:? "keywords"))
-        <*> (m .:? "created")
-          .!= ( case parseEither (m .:? "date") of
-                  Left _ -> Nothing
-                  Right v -> v
-              )
+        <*> (m .:? "created" <|> m .:? "date")
         <*> m .:? "unlisted"
 
 -- NOTE: Not using this instance because it generates "tags: null" when tags is
@@ -61,27 +58,30 @@ instance ToYAML LocalTime where
   toYAML =
     toYAML . formatZettelLocalTime
 
--- | The default format in which we decode and encode zettel dates.
-defaultZettelDateFormat :: String
-defaultZettelDateFormat = "%Y-%m-%dT%H:%M"
+data ZettelDateFormat
+  = ZettelDateFormat_Day
+  | ZettelDateFormat_DateTime
+
+zettelDateFormat :: ZettelDateFormat -> String
+zettelDateFormat = \case
+  ZettelDateFormat_Day -> "%Y-%m-%d"
+  ZettelDateFormat_DateTime -> "%Y-%m-%dT%H:%M" -- the default format in which we decode and encode zettel creation-datetime
 
 -- | All formats of user-edited tags 'created', that can be parsed.
-zettelDateFormats :: [String]
-zettelDateFormats = ["%Y-%m-%d", defaultZettelDateFormat]
+zettelDateFormats :: NonEmpty ZettelDateFormat
+zettelDateFormats = ZettelDateFormat_DateTime :| [ZettelDateFormat_Day]
 
 formatZettelLocalTime :: LocalTime -> Text
 formatZettelLocalTime =
-  toText . formatTime defaultTimeLocale defaultZettelDateFormat
+  toText . formatTime defaultTimeLocale (zettelDateFormat ZettelDateFormat_DateTime)
 
-formatZettelDate :: Day -> Text
-formatZettelDate =
-  toText . formatTime defaultTimeLocale "%Y-%m-%d"
+formatZettelDay :: Day -> Text
+formatZettelDay =
+  toText . formatTime defaultTimeLocale (zettelDateFormat ZettelDateFormat_Day)
 
 parseZettelDate :: (MonadFail m, Alternative m) => Text -> m LocalTime
 parseZettelDate t =
-  let s = toString t
-      pars = parseDateM s
-   in asum $ pars <$> zettelDateFormats
+  asum $ (flip parseDateM $ toString t) . zettelDateFormat <$> zettelDateFormats
 
 parseDateM :: MonadFail m => String -> String -> m LocalTime
-parseDateM s = \fmt -> parseTimeM False defaultTimeLocale fmt s
+parseDateM fmt = parseTimeM False defaultTimeLocale fmt
