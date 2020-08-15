@@ -32,7 +32,7 @@ import qualified Neuron.Zettelkasten.Query.Error as Q
 import Neuron.Zettelkasten.Query.Graph as Q
 import qualified Neuron.Zettelkasten.Query.Parser as Q
 import Neuron.Zettelkasten.Zettel as Q
-import Neuron.Zettelkasten.Zettel.Meta (parseZettelDate)
+import Neuron.Zettelkasten.Zettel.Meta (parseZettelLocalTime)
 import Options.Applicative
 import Relude
 import qualified Rib.Cli
@@ -46,7 +46,7 @@ data App = App
 data NewCommand = NewCommand
   { title :: Maybe Text,
     format :: Maybe ZettelFormat,
-    created :: LocalTime,
+    day :: LocalTime,
     idScheme :: Some IDScheme,
     edit :: Bool
   }
@@ -127,10 +127,10 @@ commandParser defaultNotesDir today = do
               <> long "format"
               <> help "The document format of the new zettel"
       edit <- switch (long "edit" <> short 'e' <> help "Open the newly-created zettel in $EDITOR")
-      created <-
+      day <-
         option dayReader $
-          long "created"
-            <> metavar "CREATED"
+          long "day"
+            <> metavar "DAY"
             <> value today
             <> showDefault
             <> help "Zettel creation date/time"
@@ -145,7 +145,7 @@ commandParser defaultNotesDir today = do
           <|> fmap
             (const . Some . IDSchemeCustom)
             (option str (long "id" <> help "Use a custom ID" <> metavar "IDNAME"))
-      pure $ New $ NewCommand title format created (idSchemeF (localDay created)) edit
+      pure $ New $ NewCommand title format day (idSchemeF $ localDay day) edit
     openCommand = do
       fmap Open $
         fmap
@@ -228,4 +228,4 @@ commandParser defaultNotesDir today = do
           Left $ displayException e
     dayReader :: ReadM LocalTime
     dayReader =
-      maybeReader (parseZettelDate . toText)
+      maybeReader (parseZettelLocalTime . toText)

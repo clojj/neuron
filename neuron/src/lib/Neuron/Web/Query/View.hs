@@ -104,7 +104,7 @@ renderZettelLink conn (fromMaybe def -> linkView) Zettel {..} = do
           LinkView_Default ->
             Nothing
           LinkView_ShowDate ->
-            elTime <$> zettelCreated
+            elTime <$> zettelDate
           LinkView_ShowID ->
             Just $ el "tt" $ text $ zettelIDText zettelID
       classes :: [Text] = catMaybes $ [Just "zettel-link-container"] <> [connClass, rawClass]

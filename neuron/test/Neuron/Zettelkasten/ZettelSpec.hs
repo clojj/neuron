@@ -35,7 +35,7 @@ spec = do
             "Some title"
             False
             [Tag "science", Tag "journal/class"]
-            (Just $ (LocalTime (mkDay day) midnight))
+            (Just (Right $ (LocalTime (mkDay day) midnight)))
             False
             noQueries
             noError

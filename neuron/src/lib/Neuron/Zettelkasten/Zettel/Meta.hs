@@ -1,5 +1,6 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
@@ -8,9 +9,11 @@
 
 module Neuron.Zettelkasten.Zettel.Meta
   ( Meta (..),
+    DateMayTime,
     formatZettelLocalTime,
-    formatZettelDay,
+    -- formatZettelDay,
     parseZettelDate,
+    parseZettelLocalTime,
   )
 where
 
@@ -19,12 +22,14 @@ import Data.Time
 import Data.YAML
 import Relude
 
+type DateMayTime = Either Day LocalTime
+
 -- | YAML metadata in a zettel markdown file
 data Meta = Meta
   { title :: Maybe Text,
     tags :: Maybe [Tag],
     -- | Creation day
-    created :: Maybe LocalTime,
+    date :: Maybe DateMayTime,
     -- | List in the z-index
     unlisted :: Maybe Bool
   }
@@ -37,7 +42,7 @@ instance FromYAML Meta where
         <$> m .:? "title"
         -- "keywords" is an alias for "tags"
         <*> (liftA2 (<|>) (m .:? "tags") (m .:? "keywords"))
-        <*> (m .:? "created" <|> m .:? "date")
+        <*> m .:? "date"
         <*> m .:? "unlisted"
 
 -- NOTE: Not using this instance because it generates "tags: null" when tags is
@@ -50,11 +55,11 @@ instance FromYAML Meta where
 --         "created" .= date
 --       ]
 
-instance FromYAML LocalTime where
+instance FromYAML DateMayTime where
   parseYAML =
     parseZettelDate <=< parseYAML @Text
 
-instance ToYAML LocalTime where
+instance ToYAML (Either Day LocalTime) where
   toYAML =
     toYAML . formatZettelLocalTime
 
@@ -67,21 +72,33 @@ zettelDateFormat = \case
   ZettelDateFormat_Day -> "%Y-%m-%d"
   ZettelDateFormat_DateTime -> "%Y-%m-%dT%H:%M" -- the default format in which we decode and encode zettel creation-datetime
 
--- | All formats of user-edited tags 'created', that can be parsed.
-zettelDateFormats :: NonEmpty ZettelDateFormat
-zettelDateFormats = ZettelDateFormat_DateTime :| [ZettelDateFormat_Day]
-
-formatZettelLocalTime :: LocalTime -> Text
+formatZettelLocalTime :: DateMayTime -> Text
 formatZettelLocalTime =
-  toText . formatTime defaultTimeLocale (zettelDateFormat ZettelDateFormat_DateTime)
+  toText . format
+  where
+    format v =
+      case v of
+        Left day -> formatTime defaultTimeLocale (zettelDateFormat ZettelDateFormat_Day) day
+        Right localtime -> formatTime defaultTimeLocale (zettelDateFormat ZettelDateFormat_DateTime) localtime
 
-formatZettelDay :: Day -> Text
-formatZettelDay =
-  toText . formatTime defaultTimeLocale (zettelDateFormat ZettelDateFormat_Day)
+-- formatZettelDay :: Day -> Text
+-- formatZettelDay =
+--   toText . formatTime defaultTimeLocale (zettelDateFormat ZettelDateFormat_Day)
 
-parseZettelDate :: (MonadFail m, Alternative m) => Text -> m LocalTime
+parseZettelLocalTime :: MonadFail m => Text -> m LocalTime
+parseZettelLocalTime =
+  parseTimeM False defaultTimeLocale (zettelDateFormat ZettelDateFormat_DateTime) . toString
+
+parseZettelDate :: (MonadFail m, Alternative m) => Text -> m DateMayTime
 parseZettelDate t =
-  asum $ (flip parseDateM $ toString t) . zettelDateFormat <$> zettelDateFormats
+  parseDateM $ toString t
 
-parseDateM :: MonadFail m => String -> String -> m LocalTime
-parseDateM fmt = parseTimeM False defaultTimeLocale fmt
+parseDateM :: MonadFail m => String -> m DateMayTime
+parseDateM s =
+  let day = parseTimeM False defaultTimeLocale (zettelDateFormat ZettelDateFormat_Day) s
+      localtime = parseTimeM False defaultTimeLocale (zettelDateFormat ZettelDateFormat_DateTime) s
+   in case day of
+        Just d -> return $ Left d
+        _ -> case localtime of
+          Just lt -> return $ Right lt
+          _ -> fail "error parsing"

@@ -56,7 +56,7 @@ newZettelFile NewCommand {..} config = do
       liftIO $ do
         fileAction :: FilePath -> FilePath -> IO () <-
           bool (pure showAction) mkEditActionFromEnv edit
-        writeFileText (notesDir </> zettelFile) $ defaultZettelContent zettelFormat created title
+        writeFileText (notesDir </> zettelFile) $ defaultZettelContent zettelFormat day title
         fileAction notesDir zettelFile
   where
     mkEditActionFromEnv :: IO (FilePath -> FilePath -> IO ())
@@ -84,12 +84,12 @@ newZettelFile NewCommand {..} config = do
 
 -- TODO use configurable template files?
 defaultZettelContent :: ZettelFormat -> LocalTime -> Maybe Text -> Text
-defaultZettelContent format created mtitle = case format of
+defaultZettelContent format date mtitle = case format of
   ZettelFormat_Markdown ->
     T.intercalate
       "\n"
       [ "---",
-        "created: " <> createdStr,
+        "date: " <> createdStr,
         "---",
         "",
         "# " <> title,
@@ -100,11 +100,11 @@ defaultZettelContent format created mtitle = case format of
       "\n"
       [ "* " <> title,
         "    :PROPERTIES:",
-        "    :Created: " <> createdStr,
+        "    :Date: " <> createdStr,
         "    :END:",
         "\n"
       ]
   where
-    createdStr = formatZettelLocalTime created
+    createdStr = formatZettelLocalTime (Right date)
     defaultTitleName = "Zettel created on " <> createdStr
     title = maybe defaultTitleName T.strip mtitle
